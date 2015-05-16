@@ -26,10 +26,10 @@ $ vmx start Debian gui
 
 ## Install
 
-Just go install this repository
+Just go get this repository
 
 ```bash
-go install github.com/nsaeki/vmx
+go get github.com/nsaeki/vmx
 ```
 
 ## Caveats
