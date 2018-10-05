@@ -44,8 +44,21 @@ func listVMs() (map[string]string) {
 func findVmxPath(name string) string {
 	path := name
 	if _, err := os.Stat(name); os.IsNotExist(err) {
-		// If calling listVMs is heavy, consider to cache this value.
-		path = listVMs()[name]
+		glob := fmt.Sprintf("%s/%s*/*.vmx", vmdir, name)
+		paths, err := filepath.Glob(glob)
+		if err != nil {
+			fmt.Printf("%s\n\n", err.Error())
+		} else if paths == nil {
+			fmt.Printf("Error: No VM image found like: %s\n", name)
+			list()
+			os.Exit(2)
+		} else if len(paths) > 1 {
+			fmt.Printf("Error: Two or more VM images found like: %s\n", name)
+			list()
+			os.Exit(2)
+		} else {
+			path = paths[0]
+		}
 	}
 	return path
 }
@@ -83,6 +96,22 @@ func convertArgs(args []string) []string {
 	return args
 }
 
+func list() {
+	fmt.Printf("\nVMs in %s:\n", vmdir)
+	vms := listVMs()
+	maxNameLen := 0
+	for name, _ := range vms {
+		l := len(name)
+		if maxNameLen < l {
+			maxNameLen = l
+		}
+	}
+
+	format := fmt.Sprintf("  %%-%ds (%%s)\n", maxNameLen + 2)
+	for name, path := range vms {
+		fmt.Printf(format, name, path)
+	}
+}
 
 func main() {
 	args := convertArgs(os.Args[1:])
@@ -94,20 +123,7 @@ func main() {
 	fmt.Printf("%s", out)
 
 	if len(args) > 0 && args[0] == "list" {
-		fmt.Printf("\nVMs in %s:\n", vmdir)
-		vms := listVMs()
-		maxNameLen := 0
-		for name, _ := range vms {
-			l := len(name)
-			if maxNameLen < l {
-				maxNameLen = l
-			}
-		}
-
-		format := fmt.Sprintf("  %%-%ds (%%s)\n", maxNameLen + 2)
-		for name, path := range vms {
-			fmt.Printf(format, name, path)
-		}
+		list()
 	}
 
 	if !cmd.ProcessState.Success() {
