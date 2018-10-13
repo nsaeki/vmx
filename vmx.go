@@ -12,9 +12,14 @@ import (
 const vmrun = "/Applications/VMware Fusion.app/Contents/Library/vmrun"
 
 var (
-	home = os.Getenv("HOME")
+	home  = os.Getenv("HOME")
 	vmdir = fmt.Sprintf("%s/%s", home, "Documents/Virtual Machines.localized")
 )
+
+// Changes VM Directory. Currently this function only for testing.
+func setVMDir(path string) {
+	vmdir = path
+}
 
 func extractVMName(vmpath string) string {
 	relpath := strings.TrimPrefix(vmpath, vmdir)
@@ -22,7 +27,7 @@ func extractVMName(vmpath string) string {
 	return strings.TrimSuffix(vmwarevm, ".vmwarevm")
 }
 
-func listVMs() (map[string]string) {
+func listVMs() map[string]string {
 	glob := fmt.Sprintf("%s/**/*.vmx", vmdir)
 	paths, err := filepath.Glob(glob)
 	if err != nil {
@@ -107,7 +112,7 @@ func list() {
 		}
 	}
 
-	format := fmt.Sprintf("  %%-%ds (%%s)\n", maxNameLen + 2)
+	format := fmt.Sprintf("  %%-%ds (%%s)\n", maxNameLen+2)
 	for name, path := range vms {
 		fmt.Printf(format, name, path)
 	}

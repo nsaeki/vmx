@@ -1,8 +1,53 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 )
+
+func Setup(t *testing.T) (string, func()) {
+	vmdir, err := ioutil.TempDir("", "vmxtest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(fmt.Sprintf("Create %s", vmdir))
+	setVMDir(vmdir)
+
+	return vmdir, func() {
+		t.Log(fmt.Sprintf("Remove %s", vmdir))
+		if err := os.RemoveAll(vmdir); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func CreateVM(vmdir, vmname, vmx string) {
+	os.MkdirAll(path.Join(vmdir, vmname), os.ModePerm)
+	if vmx != "" {
+		os.Create(path.Join(vmdir, vmname, vmx))
+	}
+}
+
+func TestListVMs(t *testing.T) {
+	vmdir, f := Setup(t)
+	defer f()
+	CreateVM(vmdir, "Debian.vmwarevm", "Debian.vmx")
+	CreateVM(vmdir, "Debian (stretch).vmwarevm", "Debian.vmx")
+	CreateVM(vmdir, "Empty", "")
+
+	vms := listVMs()
+	expected := 2
+	if len(vms) != expected {
+		t.Errorf("Number of VMs is %d: expected %d", len(vms), expected)
+	}
+
+	if _, ok := vms["Debian"]; !ok {
+		t.Errorf("Some VMs has not been found: VM name = %s", "Debian")
+	}
+}
 
 func TestConvertArgs(t *testing.T) {
 	cases := []struct {
