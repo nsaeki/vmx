@@ -49,7 +49,39 @@ func TestListVMs(t *testing.T) {
 	}
 }
 
+func TestFindVmxPath(t *testing.T) {
+	vmdir, f := Setup(t)
+	defer f()
+	CreateVM(vmdir, "Debian.vmwarevm", "Debian.vmx")
+	CreateVM(vmdir, "Debian (stretch).vmwarevm", "Debian.vmx")
+	CreateVM(vmdir, "Debian (jessie).vmwarevm", "Debian.vmx")
+	CreateVM(vmdir, "Ubuntu.vmwarevm", "Ubuntu.vmx")
+	CreateVM(vmdir, "Empty", "")
+
+	cases := []struct {
+		in, want string
+		hasError bool
+	}{
+		{ "Ubuntu", path.Join(vmdir, "Ubuntu.vmwarevm", "Ubuntu.vmx"), false },
+		// Ugh, in this case we can't call simple Debian vmx.
+		{ "Debian", "", true },
+		{ "Debian (stretch)", path.Join(vmdir, "Debian (stretch).vmwarevm", "Debian.vmx"), false },
+		{ "Empty", "", true },
+	}
+
+	for _, c := range cases {
+		got, err := findVmxPath(c.in)
+		if got != c.want || (err != nil) != c.hasError {
+			t.Errorf("input: %v\ngot: %v\n expected: %v \nerror: %v", c.in, got, c.want, c.hasError)
+		}
+	}
+}
+
 func TestConvertArgs(t *testing.T) {
+	vmdir, f := Setup(t)
+	defer f()
+	CreateVM(vmdir, "Debian.vmwarevm", "Debian.vmx")
+
 	cases := []struct {
 		in, want []string
 	}{

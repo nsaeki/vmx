@@ -21,8 +21,8 @@ func setVMDir(path string) {
 	vmdir = path
 }
 
-func extractVMName(vmpath string) string {
-	relpath := strings.TrimPrefix(vmpath, vmdir)
+func extractVMName(vmxpath string) string {
+	relpath := strings.TrimPrefix(vmxpath, vmdir)
 	vmwarevm := path.Base(path.Dir(relpath))
 	return strings.TrimSuffix(vmwarevm, ".vmwarevm")
 }
@@ -45,30 +45,26 @@ func listVMs() map[string]string {
 
 // Returns vmx file path from name.
 // If name is vmx file path itself, returns that unchanged.
-// If vmx path is not found, returns empty string.
-func findVmxPath(name string) string {
+// If vmx path is not found or two or more vmx found, returns empty string and non-nil error
+func findVmxPath(name string) (string, error) {
 	path := name
 	if _, err := os.Stat(name); os.IsNotExist(err) {
 		glob := fmt.Sprintf("%s/%s*/*.vmx", vmdir, name)
 		paths, err := filepath.Glob(glob)
 		if err != nil {
-			fmt.Printf("%s\n\n", err.Error())
+			return "", err
 		} else if paths == nil {
-			fmt.Printf("Error: No VM image found like: %s\n", name)
-			list()
-			os.Exit(2)
+			return "", fmt.Errorf("No VM image found like: %s\n", name)
 		} else if len(paths) > 1 {
-			fmt.Printf("Error: Two or more VM images found like: %s\n", name)
-			list()
-			os.Exit(2)
+			return "", fmt.Errorf("Two or more VM images found like: %s\n", name)
 		} else {
 			path = paths[0]
 		}
 	}
-	return path
+	return path, nil
 }
 
-// Convert VM name to vmx path in original args.
+// Converts VM name to vmx path in original args.
 func convertArgs(args []string) []string {
 	if len(args) == 0 {
 		return args
@@ -90,7 +86,15 @@ func convertArgs(args []string) []string {
 			command = v
 		case vmName == "":
 			vmName = v
-			args[i] = findVmxPath(v)
+			vmx, err := findVmxPath(v)
+			if vmx == "" || err != nil {
+				if err != nil {
+					fmt.Print(err)
+				}
+				list()
+				os.Exit(2)
+			}
+			args[i] = vmx
 		case v == "gui" || v == "nogui":
 			guiMode = v
 		}
