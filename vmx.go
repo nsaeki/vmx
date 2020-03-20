@@ -9,16 +9,33 @@ import (
 	"strings"
 )
 
-const vmrun = "/Applications/VMware Fusion.app/Contents/Library/vmrun"
-
 var (
-	home  = os.Getenv("HOME")
-	vmdir = fmt.Sprintf("%s/%s", home, "Documents/Virtual Machines.localized")
+	vmrun  = "/Applications/VMware Fusion.app/Contents/Library/vmrun"
+	home   = os.Getenv("HOME")
+	vmdir  = fmt.Sprintf("%s/%s", home, "Virtual Machines.localized")
+	vmdirs = []string{
+		fmt.Sprintf("%s/%s", home, "Virtual Machines.localized"),
+		fmt.Sprintf("%s/%s", home, "Documents/Virtual Machines.localized"),
+	}
 )
 
 // Changes VM Directory. Currently this function only for testing.
-func setVMDir(path string) {
-	vmdir = path
+func setVMDir(dir string) {
+	vmdir = dir
+}
+
+func setVMDirs(dirs []string) {
+	vmdirs = dirs
+}
+
+func findVMDir() string {
+	for _, d := range vmdirs {
+		fi, err := os.Stat(d)
+		if err == nil && fi.IsDir() {
+			return d
+		}
+	}
+	return ""
 }
 
 func extractVMName(vmxpath string) string {
@@ -54,9 +71,9 @@ func findVmxPath(name string) (string, error) {
 		if err != nil {
 			return "", err
 		} else if paths == nil {
-			return "", fmt.Errorf("No VM image found like: %s\n", name)
+			return "", fmt.Errorf("No VM image found like: %s", name)
 		} else if len(paths) > 1 {
-			return "", fmt.Errorf("Two or more VM images found like: %s\n", name)
+			return "", fmt.Errorf("Two or more VM images found like: %s", name)
 		} else {
 			path = paths[0]
 		}
@@ -64,7 +81,7 @@ func findVmxPath(name string) (string, error) {
 	return path, nil
 }
 
-// Converts VM name to vmx path in original args.
+// Converts VM name to vmx path.
 func convertArgs(args []string) []string {
 	if len(args) == 0 {
 		return args
@@ -123,17 +140,20 @@ func list() {
 }
 
 func main() {
+	findVMDir()
 	args := convertArgs(os.Args[1:])
+
+	if len(args) > 0 && args[0] == "list" {
+		list()
+		return
+	}
+
 	cmd := exec.Command(vmrun, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("%s\n\n", err.Error())
 	}
 	fmt.Printf("%s", out)
-
-	if len(args) > 0 && args[0] == "list" {
-		list()
-	}
 
 	if !cmd.ProcessState.Success() {
 		os.Exit(1)
