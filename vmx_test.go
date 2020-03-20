@@ -9,16 +9,16 @@ import (
 )
 
 func Setup(t *testing.T) (string, func()) {
-	vmdir, err := ioutil.TempDir("", "vmxtest")
+	d, err := ioutil.TempDir("", "vmxtest")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(fmt.Sprintf("Create %s", vmdir))
-	setVMDir(vmdir)
+	t.Log(fmt.Sprintf("Create %s", d))
+	setVMDir(d)
 
-	return vmdir, func() {
-		t.Log(fmt.Sprintf("Remove %s", vmdir))
-		if err := os.RemoveAll(vmdir); err != nil {
+	return d, func() {
+		t.Log(fmt.Sprintf("Remove %s", d))
+		if err := os.RemoveAll(d); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -28,6 +28,29 @@ func CreateVM(vmdir, vmname, vmx string) {
 	os.MkdirAll(path.Join(vmdir, vmname), os.ModePerm)
 	if vmx != "" {
 		os.Create(path.Join(vmdir, vmname, vmx))
+	}
+}
+
+func TestFindVMDir(t *testing.T) {
+	vmdir, f := Setup(t)
+	defer f()
+
+	cases := []struct {
+		in   []string
+		want string
+	}{
+		{[]string{vmdir}, vmdir},
+		{[]string{"nodir", vmdir}, vmdir},
+		{[]string{vmdir, "nodir"}, vmdir},
+		{[]string{"nodir"}, ""},
+	}
+
+	for _, c := range cases {
+		setVMDirs(c.in)
+		got := findVMDir()
+		if got != c.want {
+			t.Errorf("input: %v\ngot: %v\n expected: %v \n", c.in, got, c.want)
+		}
 	}
 }
 
@@ -62,11 +85,11 @@ func TestFindVmxPath(t *testing.T) {
 		in, want string
 		hasError bool
 	}{
-		{ "Ubuntu", path.Join(vmdir, "Ubuntu.vmwarevm", "Ubuntu.vmx"), false },
+		{"Ubuntu", path.Join(vmdir, "Ubuntu.vmwarevm", "Ubuntu.vmx"), false},
 		// Ugh, in this case we can't call simple Debian vmx.
-		{ "Debian", "", true },
-		{ "Debian (stretch)", path.Join(vmdir, "Debian (stretch).vmwarevm", "Debian.vmx"), false },
-		{ "Empty", "", true },
+		{"Debian", "", true},
+		{"Debian (stretch)", path.Join(vmdir, "Debian (stretch).vmwarevm", "Debian.vmx"), false},
+		{"Empty", "", true},
 	}
 
 	for _, c := range cases {
